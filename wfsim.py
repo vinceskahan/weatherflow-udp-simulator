@@ -20,9 +20,18 @@ null = None
 MYDEST = "255.255.255.255"
 MYPORT = 50222
 
+# uncomment only one of the following two lines
+# MAXCOUNTER = 75      # run this many loops then exit
+MAXCOUNTER = None      # or run forever
+
+SLEEP=1                # seconds between loops in main()
+
+PRINTDEBUG=0           # set to 1 to print debug messages to the screen
+
 #--------------------------------------------------------------------------------
 #
 # example data from UDP API v143 2020-0208
+# https://weatherflow.github.io/Tempest/api/udp/v143/
 #
 
 INITIAL_EVT_PRECIP = { "serial_number": "SK-00008453", "type":"evt_precip", "hub_sn": "HB-00000001", 
@@ -83,7 +92,8 @@ def getNow():
 def broadcastUDP(data):
 
     # a little debugging
-    # debugUDP(data)
+    if PRINTDEBUG:
+        debugUDP(data)
 
     # references for this:
     #   https://github.com/ninedraft/python-udp/blob/master/server.py
@@ -100,12 +110,12 @@ def debugUDP(data):
 
 def calcRapidWind(data):
     data['ob'][0] = timestamp
-    data['ob'][1] += 0.1          # add 1 m/s
-    data['ob'][2] += 5            # move wind clockwise quickly
-    if data['ob'][2]  > 359:      # keep wind between 0-359
+    data['ob'][1] += 0.1          # add 1 m/s each interval
+    data['ob'][2] += 9            # bump the direction slightly
+    if data['ob'][2]  > 359:      # wraparound wind direction past north
         data['ob'][2] -= 360
-    if data['ob'][1]  > 39:       # reset when it hits 39
-        data['ob'][0] = 0
+    if data['ob'][1]  > 15:       # reset to zero if the value gets too high
+        data['ob'][1] = 0
     broadcastUDP(data)
 
 def calcHubStatus(data):
@@ -115,6 +125,9 @@ def calcHubStatus(data):
 
 def calcObsSt(data):
     data['obs'][0][0] = timestamp
+    data['obs'][0][7] += 0.1      # warm up slowly
+    if data['obs'][0][7]  > 40:   # reset to a normal value
+        data['obs'][0][7] = 23
     broadcastUDP(data)
 
 def calcDeviceStatus(data):
@@ -123,10 +136,6 @@ def calcDeviceStatus(data):
 
 
 #--- main equivalent here ---
-
-MAXCOUNTER = 75        # how many seconds to run before exiting
-MAXCOUNTER = None  # uncomment to run forever
-SLEEP=1                # seconds between loops in main()
 
 # initialize
 counter=0
